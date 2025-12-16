@@ -15,30 +15,25 @@ import { Button } from '@/components/common/Button';
 import { Input } from '@/components/common/Input';
 import { colors, spacing, typography } from '@/theme';
 import { useRole } from '@/context/RoleContext';
+import { API_URL } from '@/constants/api';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'StudentLogin'>;
-
-type StudentLoginErrors = Partial<Record<'studentNumber' | 'password', string>>;
 
 export const StudentLoginScreen: React.FC<Props> = ({ navigation }) => {
   const { setSelectedRole } = useRole();
   const [studentNumber, setStudentNumber] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState<StudentLoginErrors>({});
+  const [errors, setErrors] = useState<Partial<Record<'studentNumber' | 'password', string>>>({});
   const [loading, setLoading] = useState(false);
 
-  const disabled = useMemo(() => !studentNumber || !password || loading, [
-    studentNumber,
-    password,
-    loading,
-  ]);
+  const disabled = useMemo(() => !studentNumber || !password || loading, [studentNumber, password, loading]);
 
-  const validate = (): StudentLoginErrors => {
-    const nextErrors: StudentLoginErrors = {};
+  const validate = () => {
+    const nextErrors: any = {};
     if (!studentNumber.trim()) {
-      nextErrors.studentNumber = 'Student number is required';
+      nextErrors.studentNumber = 'Student Number is required';
     } else if (studentNumber.trim().length < 6) {
-      nextErrors.studentNumber = 'Enter at least 6 characters';
+      nextErrors.studentNumber = 'Enter a valid student number';
     }
 
     if (!password.trim()) {
@@ -49,25 +44,64 @@ export const StudentLoginScreen: React.FC<Props> = ({ navigation }) => {
     return nextErrors;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    console.log('Login Button Pressed'); // DEBUG
     const validation = validate();
+    console.log('Validation result:', validation); // DEBUG
     setErrors(validation);
     if (Object.keys(validation).length > 0) return;
-    setSelectedRole('student');
+
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      console.log('Sending API Request to:', `${API_URL}/login`); // DEBUG
+      console.log('Payload:', { studentNumber, password }); // DEBUG
+
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ studentNumber, password }),
+      });
+
+      console.log('Response Status:', response.status); // DEBUG
+
+      const data = await response.json();
+      console.log('Response Data:', data); // DEBUG
+
+      if (!response.ok) {
+        Alert.alert('Login Failed', data.error || 'Invalid credentials');
+        setLoading(false);
+        return;
+      }
+
+      if (data.role !== 'student') {
+        Alert.alert('Access Denied', `This account is for ${data.role}s.`);
+        setLoading(false);
+        return;
+      }
+
+      setSelectedRole('student');
+
+      if (Platform.OS === 'web') {
+        alert(`Welcome back! Logged in as ${data.name}`);
+        navigation.replace('Dashboard', { role: 'student' });
+      } else {
+        Alert.alert('Welcome back!', `Logged in as ${data.name}`, [
+          {
+            text: 'Continue',
+            onPress: () =>
+              navigation.replace('Dashboard', {
+                role: 'student',
+              }),
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('FETCH ERROR:', error); // DEBUG
+      Alert.alert('Error', 'Network connection failed.');
+    } finally {
       setLoading(false);
-      Alert.alert('Welcome back!', 'Mocked login successful.', [
-        {
-          text: 'Continue',
-          onPress: () =>
-            navigation.replace('DashboardPlaceholder', {
-              role: 'student',
-            }),
-        },
-      ]);
-    }, 1200);
+    }
   };
 
   return (

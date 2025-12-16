@@ -5,19 +5,24 @@ export type UserRole = 'student' | 'professor' | 'employee';
 type RoleContextValue = {
   selectedRole: UserRole | null;
   setSelectedRole: (role: UserRole | null) => void;
+  department: string | null;
+  setDepartment: (dept: string | null) => void;
 };
 
 const RoleContext = createContext<RoleContextValue | undefined>(undefined);
 
 export const RoleProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
+  const [department, setDepartment] = useState<string | null>(null);
 
   const value = useMemo(
     () => ({
       selectedRole,
       setSelectedRole,
+      department,
+      setDepartment,
     }),
-    [selectedRole],
+    [selectedRole, department],
   );
 
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;

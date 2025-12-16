@@ -4,10 +4,13 @@ import { colors, spacing, typography } from '@/theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 
+type ButtonSize = 'sm' | 'md' | 'lg';
+
 type ButtonProps = {
   label: string;
   onPress?: () => void;
   variant?: ButtonVariant;
+  size?: ButtonSize;
   disabled?: boolean;
   loading?: boolean;
   fullWidth?: boolean;
@@ -17,6 +20,7 @@ export const Button: React.FC<ButtonProps> = ({
   label,
   onPress,
   variant = 'primary',
+  size = 'md',
   disabled,
   loading,
   fullWidth,
@@ -30,6 +34,7 @@ export const Button: React.FC<ButtonProps> = ({
       style={({ pressed }) => [
         styles.base,
         styles[variant],
+        styles[size],
         fullWidth && styles.fullWidth,
         (pressed || loading) && styles.pressed,
         isDisabled && styles.disabled,
@@ -43,6 +48,7 @@ export const Button: React.FC<ButtonProps> = ({
             styles.label,
             variant === 'ghost' && styles.ghostLabel,
             variant === 'secondary' && styles.secondaryLabel,
+            (size === 'sm' && styles.smLabel),
           ]}
         >
           {label}
@@ -61,6 +67,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     flexDirection: 'row',
     gap: spacing.sm,
+  },
+  sm: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+  },
+  md: {
+    // Default from base is fine
+  },
+  lg: {
+    paddingVertical: spacing.lg,
   },
   fullWidth: {
     width: '100%',
@@ -92,6 +108,9 @@ const styles = StyleSheet.create({
   },
   ghostLabel: {
     color: colors.primary,
+  },
+  smLabel: {
+    fontSize: typography.sizes.sm,
   },
 });
 

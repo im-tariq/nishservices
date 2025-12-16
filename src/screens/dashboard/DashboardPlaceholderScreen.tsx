@@ -7,11 +7,17 @@ import { colors, spacing, typography } from '@/theme';
 import { Button } from '@/components/common/Button';
 import { useRole } from '@/context/RoleContext';
 
-type Props = NativeStackScreenProps<AuthStackParamList, 'DashboardPlaceholder'>;
+import { EmployeeDashboardScreen } from './EmployeeDashboardScreen';
+
+type Props = NativeStackScreenProps<AuthStackParamList, 'Dashboard'>;
 
 export const DashboardPlaceholderScreen: React.FC<Props> = ({ navigation, route }) => {
   const { role } = route.params;
   const { setSelectedRole } = useRole();
+
+  if (role === 'employee') {
+    return <EmployeeDashboardScreen />;
+  }
 
   const handleLogout = () => {
     setSelectedRole(null);

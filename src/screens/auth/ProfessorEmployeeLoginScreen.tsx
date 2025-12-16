@@ -15,6 +15,7 @@ import { Input } from '@/components/common/Input';
 import { Button } from '@/components/common/Button';
 import { colors, spacing, typography } from '@/theme';
 import { useRole } from '@/context/RoleContext';
+import { API_URL } from '@/constants/api';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'ProfessorEmployeeLogin'>;
 
@@ -22,7 +23,7 @@ type Errors = Partial<Record<'email' | 'password', string>>;
 
 export const ProfessorEmployeeLoginScreen: React.FC<Props> = ({ navigation, route }) => {
   const { role } = route.params;
-  const { setSelectedRole } = useRole();
+  const { setSelectedRole, setDepartment } = useRole();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -30,21 +31,28 @@ export const ProfessorEmployeeLoginScreen: React.FC<Props> = ({ navigation, rout
 
   const disabled = useMemo(() => !email || !password || loading, [email, password, loading]);
 
+  /* 
+   * "department" is only present when role === 'employee'.
+   * We cast "route.params" carefully or just check if "department" exists.
+   */
+  const params = route.params;
+  const department = 'department' in params ? params.department : undefined;
+
   const headings = useMemo(
     () =>
       role === 'professor'
         ? {
-            eyebrow: 'Professor Workspace',
-            title: 'Inspire, mentor, and stay informed.',
-            subtitle:
-              'Review course feedback, update NoteHub, and stay synced with your department.',
-          }
+          eyebrow: 'Professor Workspace',
+          title: 'Inspire, mentor, and stay informed.',
+          subtitle:
+            'Review course feedback, update NoteHub, and stay synced with your department.',
+        }
         : {
-            eyebrow: 'Employee Hub',
-            title: 'Operate student services efficiently.',
-            subtitle: 'Manage queue desks, events, and campus communication in one place.',
-          },
-    [role],
+          eyebrow: department ? `${department}` : 'Employee Hub',
+          title: 'Operate student services efficiently.',
+          subtitle: 'Manage queue desks, events, and campus communication in one place.',
+        },
+    [role, department],
   );
 
   const validate = (): Errors => {
@@ -63,25 +71,61 @@ export const ProfessorEmployeeLoginScreen: React.FC<Props> = ({ navigation, rout
     return nextErrors;
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const validation = validate();
     setErrors(validation);
     if (Object.keys(validation).length > 0) return;
-    setSelectedRole(role);
+
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const response = await fetch(`${API_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        Alert.alert('Login Failed', data.error || 'Invalid credentials');
+        setLoading(false);
+        return;
+      }
+
+      // Validate Role Match
+      // We assume the backend returns 'role' which matches our 'UserRole' type
+      if (data.role !== role) {
+        Alert.alert('Access Denied', `This account is for ${data.role}s, but you are trying to login as a ${role}.`);
+        setLoading(false);
+        return;
+      }
+
+      // Success
+      setSelectedRole(data.role);
+      setDepartment(data.department || null);
+
+      if (Platform.OS === 'web') {
+        alert(`Access granted. Welcome ${data.name}!`);
+        navigation.replace('Dashboard', { role: data.role });
+      } else {
+        Alert.alert('Access granted', `Welcome ${data.name}!`, [
+          {
+            text: 'Continue',
+            onPress: () =>
+              navigation.replace('Dashboard', {
+                role: data.role,
+              }),
+          },
+        ]);
+      }
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert('Error', 'Network connection failed.');
+    } finally {
       setLoading(false);
-      Alert.alert('Access granted', 'Mocked login successful.', [
-        {
-          text: 'Continue',
-          onPress: () =>
-            navigation.replace('DashboardPlaceholder', {
-              role,
-            }),
-        },
-      ]);
-    }, 1200);
+    }
   };
 
   return (

@@ -16,25 +16,25 @@ const ROLE_CARDS: Array<{
   description: string;
   icon: React.ComponentProps<typeof Ionicons>['name'];
 }> = [
-  {
-    role: 'student',
-    title: 'Student',
-    description: 'Queues, notes, mentors, reviews & campus life tools.',
-    icon: 'school-outline',
-  },
-  {
-    role: 'professor',
-    title: 'Professor',
-    description: 'Engage students, share materials, manage reviews.',
-    icon: 'people-outline',
-  },
-  {
-    role: 'employee',
-    title: 'Employee',
-    description: 'Operate service desks, manage events & departments.',
-    icon: 'briefcase-outline',
-  },
-];
+    {
+      role: 'student',
+      title: 'Student',
+      description: 'Queues, notes, mentors, reviews & campus life tools.',
+      icon: 'school-outline',
+    },
+    {
+      role: 'professor',
+      title: 'Professor',
+      description: 'Engage students, share materials, manage reviews.',
+      icon: 'people-outline',
+    },
+    {
+      role: 'employee',
+      title: 'Employee',
+      description: 'Operate service desks, manage events & departments.',
+      icon: 'briefcase-outline',
+    },
+  ];
 
 export const RoleSelectionScreen: React.FC<Props> = ({ navigation }) => {
   const { selectedRole, setSelectedRole } = useRole();
@@ -45,8 +45,14 @@ export const RoleSelectionScreen: React.FC<Props> = ({ navigation }) => {
       navigation.navigate('StudentLogin');
       return;
     }
+    if (role === 'employee') {
+      navigation.navigate('DepartmentSelection');
+      return;
+    }
+
+    // Must be professor at this point
     navigation.navigate('ProfessorEmployeeLogin', {
-      role: role === 'professor' ? 'professor' : 'employee',
+      role: 'professor',
     });
   };
 
