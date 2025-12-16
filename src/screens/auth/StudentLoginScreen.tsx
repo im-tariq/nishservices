@@ -20,7 +20,7 @@ import { API_URL } from '@/constants/api';
 type Props = NativeStackScreenProps<AuthStackParamList, 'StudentLogin'>;
 
 export const StudentLoginScreen: React.FC<Props> = ({ navigation }) => {
-  const { setSelectedRole } = useRole();
+  const { setSelectedRole, setUserName } = useRole();
   const [studentNumber, setStudentNumber] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Partial<Record<'studentNumber' | 'password', string>>>({});
@@ -81,6 +81,7 @@ export const StudentLoginScreen: React.FC<Props> = ({ navigation }) => {
       }
 
       setSelectedRole('student');
+      setUserName(data.name);
 
       if (Platform.OS === 'web') {
         alert(`Welcome back! Logged in as ${data.name}`);

@@ -23,7 +23,7 @@ type Errors = Partial<Record<'email' | 'password', string>>;
 
 export const ProfessorEmployeeLoginScreen: React.FC<Props> = ({ navigation, route }) => {
   const { role } = route.params;
-  const { setSelectedRole, setDepartment } = useRole();
+  const { setSelectedRole, setDepartment, setUserName } = useRole();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<Errors>({});
@@ -104,6 +104,7 @@ export const ProfessorEmployeeLoginScreen: React.FC<Props> = ({ navigation, rout
       // Success
       setSelectedRole(data.role);
       setDepartment(data.department || null);
+      setUserName(data.name);
 
       if (Platform.OS === 'web') {
         alert(`Access granted. Welcome ${data.name}!`);

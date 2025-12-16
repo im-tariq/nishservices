@@ -1,15 +1,14 @@
 import React from 'react';
-import { StyleSheet, Text, View, ScrollView, Pressable } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { View, StyleSheet, Text, ScrollView, Pressable } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, typography } from '@/theme';
 import { useRole } from '@/context/RoleContext';
+import { CustomHeader } from '@/components/common/CustomHeader';
 
 export const HomeScreen = () => {
-    const { selectedRole } = useRole();
+    const { selectedRole, userName } = useRole();
     const navigation = useNavigation();
-    const userName = "User"; // TODO: Fetch from actual user profile
 
     const services = [
         { title: 'Queue Management', icon: 'people-outline', route: 'QueueService' },
@@ -30,16 +29,18 @@ export const HomeScreen = () => {
         }
     };
 
+    const handleProfilePress = () => {
+        // @ts-ignore
+        navigation.navigate('Profile');
+    };
+
     return (
-        <SafeAreaView style={styles.safeArea} edges={['top']}>
-            <ScrollView contentContainerStyle={styles.container}>
-                <View style={styles.header}>
-                    <View>
-                        <Text style={styles.greeting}>Welcome,</Text>
-                        <Text style={styles.username}>{userName}!</Text>
-                    </View>
-                    <View style={styles.profileIcon} />
-                </View>
+        <View style={styles.container}>
+            <CustomHeader
+                onProfilePress={handleProfilePress}
+                userName={userName || undefined}
+            />
+            <ScrollView contentContainerStyle={styles.scrollContent}>
 
                 <View style={styles.roleContainer}>
                     <Text style={styles.roleText}>{selectedRole ? selectedRole.toUpperCase() : 'GUEST'}</Text>
@@ -59,38 +60,18 @@ export const HomeScreen = () => {
                     ))}
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    safeArea: {
+    container: {
         flex: 1,
         backgroundColor: colors.background,
     },
-    container: {
+    scrollContent: {
         padding: spacing.md,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: spacing.lg,
-    },
-    greeting: {
-        fontSize: typography.sizes.lg,
-        color: colors.textSecondary,
-    },
-    username: {
-        fontSize: typography.sizes['2xl'],
-        fontWeight: 'bold',
-        color: colors.primary,
-    },
-    profileIcon: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: colors.surface, // Placeholder
+        paddingTop: spacing.lg,
     },
     roleContainer: {
         backgroundColor: colors.surface,
@@ -116,7 +97,7 @@ const styles = StyleSheet.create({
         gap: spacing.md,
     },
     card: {
-        width: '47%', // roughly half minus gap
+        width: '47%',
         aspectRatio: 1,
         backgroundColor: colors.surface,
         padding: spacing.md,
