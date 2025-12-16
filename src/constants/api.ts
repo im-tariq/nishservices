@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 
 // For Physical Devices (iOS/Android), use your computer's LAN IP.
 // Update this IP if your computer's IP changes.
-const LAN_IP = '192.168.1.104';
+const LAN_IP = '192.168.1.105';
 
 export const API_URL =
     Platform.OS === 'web' ? 'http://localhost:3000/api' :
