@@ -1,111 +1,131 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { API_URL } from '@/constants/api';
 
-export type TicketStatus = 'pending' | 'active' | 'completed';
+export type TicketStatus = 'pending' | 'waiting' | 'in_service' | 'completed' | 'cancelled';
 
 export interface Ticket {
     id: string;
-    departmentName: string;
-    studentName: string;
-    queueNumber: string;
+    deptName: string;
+    deptCode: string;
+    queueNum: string;
     status: TicketStatus;
-    timestamp: number;
-    // API might return different fields, but we map them here if needed.
-    // For now, our simple API matches this roughly.
+    createdAt: string;
 }
 
 interface QueueContextType {
     tickets: Ticket[];
-    createTicket: (departmentName: string, departmentCode: string) => Ticket;
-    updateTicketStatus: (ticketId: string, status: TicketStatus) => void;
-    getTicketsByDepartment: (departmentName: string) => Ticket[];
+    myTickets: Ticket[];
+    deptCounts: Record<string, number>;
+    createTicket: (deptName: string, deptCode: string) => Promise<Ticket>;
+    fetchTickets: (deptName?: string) => Promise<void>;
+    fetchNextNumber: (deptCode: string) => Promise<string>;
+    updateTicketStatus: (id: string, status: TicketStatus) => Promise<void>;
+    deleteTicket: (id: string) => Promise<void>;
+    refreshCounts: () => Promise<void>;
 }
 
 const QueueContext = createContext<QueueContextType | undefined>(undefined);
 
-export const QueueProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const QueueProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [tickets, setTickets] = useState<Ticket[]>([]);
+    const [deptCounts, setDeptCounts] = useState<Record<string, number>>({});
+    const [myTicketIds, setMyTicketIds] = useState<string[]>([]);
 
-    // Poll tickets
-    const fetchTickets = async () => {
+    const myTickets = tickets.filter(t => myTicketIds.includes(t.id));
+
+    const fetchTickets = async (deptName?: string) => {
         try {
-            const response = await fetch(`${API_URL}/tickets`);
-            if (response.ok) {
-                const data = await response.json();
-                // Map API data to Ticket interface if needed.
-                // Our API returns: { id, deptName, deptCode, status, queueNum, createdAt }
-                // We map it to our frontend Ticket interface:
-                const mapped: Ticket[] = data.map((d: any) => ({
-                    id: d.id,
-                    departmentName: d.deptName,
-                    studentName: 'Student', // hardcoded in API too effectively
-                    queueNumber: d.queueNum,
-                    status: d.status as TicketStatus,
-                    timestamp: new Date(d.createdAt).getTime()
-                }));
-                setTickets(mapped);
+            const url = deptName
+                ? `${API_URL}/tickets?deptName=${encodeURIComponent(deptName)}`
+                : `${API_URL}/tickets`;
+
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                setTickets(data);
             }
-        } catch (e) {
-            console.error('Failed to fetch tickets', e);
+        } catch (error) {
+            console.error('Failed to fetch tickets:', error);
         }
     };
 
-    useEffect(() => {
-        fetchTickets();
-        const interval = setInterval(fetchTickets, 2000); // 2 second polling
-        return () => clearInterval(interval);
-    }, []);
+    const refreshCounts = async () => {
+        try {
+            const res = await fetch(`${API_URL}/ticket-counts`);
+            if (res.ok) {
+                const data = await res.json();
+                setDeptCounts(data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch counts:', error);
+        }
+    };
 
-    const createTicket = (departmentName: string, departmentCode: string) => {
-        const tempId = Math.random().toString();
-        // Optimistic object to return immediately so UI doesn't crash
-        const tempTicket: Ticket = {
-            id: tempId,
-            departmentName,
-            studentName: 'Student',
-            queueNumber: 'LOADING...',
-            status: 'pending',
-            timestamp: Date.now()
-        };
+    const fetchNextNumber = async (deptCode: string) => {
+        try {
+            const res = await fetch(`${API_URL}/tickets/next-number?deptCode=${encodeURIComponent(deptCode)}`);
+            if (res.ok) {
+                const data = await res.json();
+                return data.queueNum;
+            }
+            return '';
+        } catch (error) {
+            console.error('Failed to fetch next number:', error);
+            return '';
+        }
+    };
 
-        // Call API
-        fetch(`${API_URL}/tickets`, {
+    const createTicket = async (deptName: string, deptCode: string) => {
+        const res = await fetch(`${API_URL}/tickets`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deptName: departmentName, deptCode: departmentCode })
-        })
-            .then(res => res.json())
-            .then(data => {
-                // We rely on the next poll to update the list fully, 
-                // or we could optimistically update here, but mapping is needed.
-                // For simplicity, let's just trigger a fetch immediately.
-                fetchTickets();
-            })
-            .catch(err => console.error(err));
+            body: JSON.stringify({ deptName, deptCode }),
+        });
 
-        return tempTicket;
+        const data = await res.json();
+        if (!res.ok) {
+            throw new Error(data.error || 'Failed to create ticket');
+        }
+
+        // Refresh data
+        await fetchTickets();
+        await refreshCounts();
+        setMyTicketIds(prev => [...prev, data.id]);
+        return data; // Return created ticket
     };
 
-    const updateTicketStatus = (ticketId: string, status: TicketStatus) => {
-        // Optimistic local update
-        setTickets(prev => prev.map(t =>
-            t.id === ticketId ? { ...t, status } : t
-        ));
-
-        // API Call
-        fetch(`${API_URL}/tickets/${ticketId}`, {
+    const updateTicketStatus = async (id: string, status: TicketStatus) => {
+        const res = await fetch(`${API_URL}/tickets/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status })
-        }).catch(e => console.error(e));
+            body: JSON.stringify({ status }),
+        });
+
+        if (res.ok) {
+            await fetchTickets(); // Refresh lists
+            await refreshCounts();
+        }
     };
 
-    const getTicketsByDepartment = (departmentName: string) => {
-        return tickets.filter(t => t.departmentName === departmentName);
+    const deleteTicket = async (id: string) => {
+        const res = await fetch(`${API_URL}/tickets/${id}`, {
+            method: 'DELETE',
+        });
+
+        if (res.ok) {
+            await fetchTickets();
+            await refreshCounts();
+            setMyTicketIds(prev => prev.filter(ticketId => ticketId !== id));
+        }
     };
+
+    // Initial load
+    useEffect(() => {
+        refreshCounts();
+    }, []);
 
     return (
-        <QueueContext.Provider value={{ tickets, createTicket, updateTicketStatus, getTicketsByDepartment }}>
+        <QueueContext.Provider value={{ tickets, myTickets, deptCounts, createTicket, fetchTickets, fetchNextNumber, updateTicketStatus, deleteTicket, refreshCounts }}>
             {children}
         </QueueContext.Provider>
     );

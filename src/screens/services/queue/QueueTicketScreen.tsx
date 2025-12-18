@@ -1,104 +1,281 @@
-import React, { useEffect } from 'react';
-import { StyleSheet, Text, View, BackHandler, Alert } from 'react-native';
+
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, Text, View, Alert, ScrollView } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { QueueStackParamList } from '@/navigation/services/QueueNavigator';
 import { colors, spacing, typography } from '@/theme';
 import { Button } from '@/components/common/Button';
+import { useQueue, Ticket } from '@/context/QueueContext';
+import { Ionicons } from '@expo/vector-icons';
+import { API_URL } from '@/constants/api'; // For polling individual status if needed
 
 type Props = NativeStackScreenProps<QueueStackParamList, 'QueueTicket'>;
 
 export const QueueTicketScreen: React.FC<Props> = ({ navigation, route }) => {
-    const { queueNumber, departmentName } = route.params;
+    const params = route.params;
+    const { createTicket, updateTicketStatus, deleteTicket, fetchNextNumber } = useQueue();
 
-    // Prevent going back easily to simulate specific flow
+    // State to hold the ticket data (either real or preview)
+    const [ticket, setTicket] = useState<Ticket | null>(params.ticket || null);
+    const [previewNum, setPreviewNum] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const isPreview = !params.ticket && !!params.department;
+    const isPending = isPreview || ticket?.status === 'pending';
+    const isWaiting = ticket?.status === 'waiting';
+    const isInService = ticket?.status === 'in_service';
+
     useEffect(() => {
-        const onBackPress = () => {
-            navigation.navigate('QueueHome');
-            return true;
-        };
+        if (isPreview && params.department) {
+            // Fetch preview number
+            fetchNextNumber(params.department.code).then(num => {
+                setPreviewNum(num);
+                // Create a mock ticket object for display
+                setTicket({
+                    id: 'preview',
+                    deptName: params.department!.name,
+                    deptCode: params.department!.code,
+                    queueNum: num,
+                    status: 'pending',
+                    createdAt: new Date().toISOString()
+                });
+            });
+        }
+    }, [isPreview, params.department]);
 
-        const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
-        return () => subscription.remove();
-    }, [navigation]);
+    // Poll for status updates only if we have a REAL ticket
+    useEffect(() => {
+        if (!ticket || ticket.id === 'preview' || isPending) return;
 
-    const handleDone = () => {
-        navigation.navigate('QueueHome');
+        const interval = setInterval(async () => {
+            try {
+                // Polling logic here... 
+                // For simplicity, we assume Context updates are sufficient or we implement single poll
+                // Re-implement basic polling if needed, but Context fetchTickets is cleaner if globally managed.
+                // Leaving basic polling for now to match previous behavior
+                const res = await fetch(`${API_URL}/tickets?deptName=${encodeURIComponent(ticket.deptName)}`);
+                if (res.ok) {
+                    const data: Ticket[] = await res.json();
+                    const updated = data.find(t => t.id === ticket.id);
+                    if (updated) {
+                        setTicket(updated);
+                        if (updated.status === 'completed') {
+                            Alert.alert('Service Completed', 'Your service has been marked as completed.', [
+                                { text: 'OK', onPress: () => navigation.goBack() }
+                            ]);
+                        }
+                    }
+                }
+            } catch (e) { console.error("Poll error", e); }
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [ticket?.id, ticket?.status]);
+
+
+    const handleConfirm = async () => {
+        if (!ticket || !params.department) return;
+        setLoading(true);
+        try {
+            // 1. Create the ticket
+            const created = await createTicket(params.department.name, params.department.code);
+            // 2. Immediately set to waiting (joined queue)
+            await updateTicketStatus(created.id, 'waiting');
+            navigation.goBack();
+        } catch (error) {
+            Alert.alert('Error', 'Failed to confirm ticket.');
+        } finally {
+            setLoading(false);
+        }
     };
 
+    const handleCancel = async () => {
+        if (isPreview) {
+            navigation.goBack();
+            return;
+        }
+
+        try {
+            if (ticket) {
+                await deleteTicket(ticket.id);
+                navigation.goBack();
+            }
+        } catch (error) {
+            Alert.alert('Error', 'Failed to delete ticket.');
+        }
+    };
+
+    if (!ticket) {
+        return (
+            <View style={[styles.container, { alignItems: 'center' }]}>
+                <Text>Loading...</Text>
+            </View>
+        );
+    }
+
     return (
-        <View style={styles.container}>
+        <ScrollView contentContainerStyle={styles.container}>
             <View style={styles.ticketCard}>
-                <Text style={styles.deptName}>{departmentName}</Text>
-                <Text style={styles.queueLabel}>Your Number</Text>
-                <Text style={styles.queueNumber}>{queueNumber}</Text>
-                <View style={styles.infoRow}>
-                    <Text style={styles.infoText}>Position: 3rd</Text>
-                    <Text style={styles.infoText}>Est. Wait: 15m</Text>
+                <Text style={styles.deptName}>{ticket.deptName}</Text>
+
+                <View style={styles.numberContainer}>
+                    <Text style={styles.queueLabel}>Queue Number</Text>
+                    <Text style={styles.queueNumber}>{ticket.queueNum || '...'}</Text>
                 </View>
+
+                {!isPending && (
+                    <View style={styles.statusContainer}>
+                        <Text style={styles.statusLabel}>Status</Text>
+                        <View style={[
+                            styles.statusBadge,
+                            isInService ? styles.statusActive : styles.statusWaiting
+                        ]}>
+                            <Text style={styles.statusText}>{ticket.status.toUpperCase().replace('_', ' ')}</Text>
+                        </View>
+                    </View>
+                )}
+
+                {isPending && (
+                    <Text style={styles.pendingText}>Please Confirm your ticket to join the queue.</Text>
+                )}
+
+                {isInService && (
+                    <View style={styles.alertBox}>
+                        <Ionicons name="megaphone-outline" size={24} color="#FFF" />
+                        <Text style={styles.alertText}>
+                            It is your turn now – Please head to the required department.
+                        </Text>
+                    </View>
+                )}
+
+                {!isPending && !isInService && (
+                    <Text style={styles.infoText}>
+                        Please wait for your number to be called.
+                    </Text>
+                )}
             </View>
 
-            <Text style={styles.instruction}>
-                Please wait for your number to be called on the display screens.
-            </Text>
-
-            <Button label="Back to Queue Home" onPress={handleDone} variant="secondary" fullWidth />
-        </View>
+            <View style={styles.buttonContainer}>
+                {isPending ? (
+                    <>
+                        <Button
+                            label={loading ? "Confirming..." : "Confirm"}
+                            variant="primary"
+                            onPress={handleConfirm}
+                            fullWidth
+                            disabled={loading}
+                        />
+                        <Button
+                            label="Cancel"
+                            variant="destructive"
+                            onPress={handleCancel}
+                            fullWidth
+                            disabled={loading}
+                        />
+                    </>
+                ) : (
+                    <Button
+                        label="Cancel Order"
+                        variant="destructive"
+                        onPress={handleCancel}
+                        fullWidth
+                    />
+                )}
+            </View>
+        </ScrollView>
     );
 };
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
+        flexGrow: 1,
         backgroundColor: colors.background,
         padding: spacing.lg,
-        alignItems: 'center',
         justifyContent: 'center',
         gap: spacing.xl,
     },
     ticketCard: {
         backgroundColor: colors.surface,
+        borderRadius: 20,
         padding: spacing.xl,
-        borderRadius: 16,
-        width: '100%',
         alignItems: 'center',
-        shadowColor: '#000',
+        shadowColor: "#000",
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.1,
-        shadowRadius: 8,
+        shadowRadius: 10,
         elevation: 5,
-        borderTopWidth: 8,
-        borderTopColor: colors.primary,
+        gap: spacing.lg,
     },
     deptName: {
         fontSize: typography.sizes.lg,
-        color: colors.textSecondary,
-        marginBottom: spacing.lg,
-        textAlign: 'center',
-    },
-    queueLabel: {
-        fontSize: typography.sizes.sm,
-        textTransform: 'uppercase',
-        color: colors.textSecondary,
-        marginBottom: spacing.xs,
-    },
-    queueNumber: {
-        fontSize: 56,
         fontWeight: 'bold',
         color: colors.primary,
-        marginBottom: spacing.lg,
+        textAlign: 'center',
     },
-    infoRow: {
-        flexDirection: 'row',
-        gap: spacing.xl,
+    numberContainer: {
+        alignItems: 'center',
+        gap: spacing.xs,
     },
-    infoText: {
+    queueLabel: {
         fontSize: typography.sizes.base,
-        fontWeight: '500',
+        color: colors.textSecondary,
+    },
+    queueNumber: {
+        fontSize: 64,
+        fontWeight: 'bold',
+        color: colors.primary,
+    },
+    statusContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+    },
+    statusLabel: {
+        fontSize: typography.sizes.base,
         color: colors.text,
     },
-    instruction: {
+    statusBadge: {
+        paddingVertical: 4,
+        paddingHorizontal: 12,
+        borderRadius: 12,
+        backgroundColor: '#FFE0B2', // Default Waiting Orange
+    },
+    statusActive: {
+        backgroundColor: '#C8E6C9', // Green
+    },
+    statusWaiting: {
+        backgroundColor: '#FFE0B2', // Orange
+    },
+    statusText: {
+        fontWeight: 'bold',
+        fontSize: typography.sizes.sm,
+        color: colors.text,
+    },
+    infoText: {
         textAlign: 'center',
         color: colors.textSecondary,
-        lineHeight: 22,
+        fontSize: typography.sizes.sm,
     },
+    pendingText: {
+        textAlign: 'center',
+        color: colors.accent,
+        fontWeight: 'bold',
+    },
+    alertBox: {
+        backgroundColor: colors.accent,
+        padding: spacing.md,
+        borderRadius: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+    },
+    alertText: {
+        color: '#FFF',
+        fontWeight: 'bold',
+        flex: 1,
+    },
+    buttonContainer: {
+        gap: spacing.md,
+    }
 });
+

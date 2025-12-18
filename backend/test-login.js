@@ -5,8 +5,8 @@ const fetch = require('node-fetch'); // You might need to install node-fetch if 
 const http = require('http');
 
 const data = JSON.stringify({
-    studentNumber: '2021022336',
-    password: 'password123'
+    studentNumber: '20212022336',
+    password: '123456'
 });
 
 const options = {

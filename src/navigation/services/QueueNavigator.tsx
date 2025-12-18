@@ -5,10 +5,12 @@ import { QueueDepartmentSelectionScreen } from '@/screens/services/queue/QueueDe
 import { QueueTicketScreen } from '@/screens/services/queue/QueueTicketScreen';
 import { colors } from '@/theme';
 
+import { Ticket } from '@/context/QueueContext';
+
 export type QueueStackParamList = {
     QueueHome: undefined;
     QueueDepartmentSelection: undefined;
-    QueueTicket: { ticketId: string; departmentName: string; queueNumber: string };
+    QueueTicket: { ticket?: Ticket; department?: { name: string; code: string } };
 };
 
 const Stack = createNativeStackNavigator<QueueStackParamList>();

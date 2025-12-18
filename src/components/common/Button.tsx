@@ -2,7 +2,7 @@ import React from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
 import { colors, spacing, typography } from '@/theme';
 
-type ButtonVariant = 'primary' | 'secondary' | 'ghost';
+type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive';
 
 type ButtonSize = 'sm' | 'md' | 'lg';
 
@@ -92,7 +92,12 @@ const styles = StyleSheet.create({
   ghost: {
     backgroundColor: 'transparent',
   },
+
+  destructive: {
+    backgroundColor: colors.status.cancelled,
+  },
   pressed: {
+
     opacity: 0.8,
   },
   disabled: {

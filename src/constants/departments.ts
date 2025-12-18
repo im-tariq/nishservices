@@ -5,10 +5,11 @@ export type Department = {
 };
 
 export const DEPARTMENTS: Department[] = [
-    { id: '1', name: 'International Office', code: 'INT' },
-    { id: '2', name: 'Registrar Office', code: 'REG' },
+    { id: '1', name: 'International Office', code: 'IO' },
+    { id: '2', name: 'Financial Office', code: 'FO' },
     { id: '3', name: 'Student Affairs', code: 'SA' },
-    { id: '4', name: 'Financial Aid', code: 'FA' },
-    { id: '5', name: 'IT Support', code: 'IT' },
-    { id: '6', name: 'Library Services', code: 'LIB' },
+    { id: '4', name: 'Graduation Affairs', code: 'GA' },
+    { id: '5', name: 'Help Center', code: 'HC' },
+    { id: '6', name: 'Nish Card', code: 'NC' },
+    { id: '7', name: 'Printing House', code: 'PH' },
 ];
