@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StyleSheet, Text, View, FlatList, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRole } from '@/context/RoleContext';
@@ -9,14 +9,20 @@ import { Button } from '@/components/common/Button';
 
 export const EmployeeDashboardScreen = () => {
     const { department, setSelectedRole } = useRole();
-    const { tickets, updateTicketStatus } = useQueue();
+    const { tickets, updateTicketStatus, fetchTickets } = useQueue();
+
+    useEffect(() => {
+        if (department) {
+            fetchTickets(department);
+        }
+    }, [department]);
 
     // Filter tickets for this department
     const departmentTickets = tickets.filter(
-        t => t.departmentName === department && t.status !== 'completed'
+        t => t.deptName === department && t.status !== 'completed'
     );
 
-    const activeTicket = departmentTickets.find(t => t.status === 'active');
+    const activeTicket = departmentTickets.find(t => t.status === 'in_service');
     const pendingTickets = departmentTickets.filter(t => t.status === 'pending');
 
     const handleCallNext = () => {
@@ -24,7 +30,7 @@ export const EmployeeDashboardScreen = () => {
             updateTicketStatus(activeTicket.id, 'completed');
         }
         if (pendingTickets.length > 0) {
-            updateTicketStatus(pendingTickets[0].id, 'active');
+            updateTicketStatus(pendingTickets[0].id, 'in_service');
         }
     };
 
@@ -41,7 +47,7 @@ export const EmployeeDashboardScreen = () => {
     const renderTicket = ({ item }: { item: Ticket }) => (
         <View style={styles.ticketCard}>
             <View style={styles.ticketInfo}>
-                <Text style={styles.ticketNumber}>{item.queueNumber}</Text>
+                <Text style={styles.ticketNumber}>{item.queueNum}</Text>
                 <Text style={styles.studentName}>Student</Text>
             </View>
             <View style={styles.ticketStatus}>
@@ -65,8 +71,8 @@ export const EmployeeDashboardScreen = () => {
                 <Text style={styles.sectionTitle}>Now Serving</Text>
                 {activeTicket ? (
                     <View style={styles.activeCard}>
-                        <Text style={styles.activeNumber}>{activeTicket.queueNumber}</Text>
-                        <Text style={styles.activeStatus}>Active</Text>
+                        <Text style={styles.activeNumber}>{activeTicket.queueNum}</Text>
+                        <Text style={styles.activeStatus}>Serving</Text>
                         <Button
                             label="Complete"
                             onPress={handleCompleteCurrent}

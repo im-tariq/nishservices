@@ -103,7 +103,11 @@ export const ProfessorEmployeeLoginScreen: React.FC<Props> = ({ navigation, rout
 
       // Success
       setSelectedRole(data.role);
-      setDepartment(data.department || null);
+      // Backend now returns full department object {name, code}
+      // Store the name for display, or better yet, update context to store both
+      // For now, consistent with context type (string | null), we store name.
+      // Ideally we should update RoleContext to store the full object.
+      setDepartment(data.department ? data.department.name : null);
       setUserName(data.name);
 
       if (Platform.OS === 'web') {

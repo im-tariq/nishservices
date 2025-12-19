@@ -31,13 +31,24 @@ app.post('/api/login', async (req, res) => {
     try {
         const { email, studentNumber, password } = req.body;
 
+        // Join with Department table to get details
         let query, param;
 
         if (studentNumber) {
-            query = 'SELECT * FROM "User" WHERE "studentNumber" = $1';
+            query = `
+                SELECT u.*, d.name as "departmentName", d.code as "departmentCode"
+                FROM "User" u
+                LEFT JOIN "Department" d ON u."departmentId" = d.id
+                WHERE u."studentNumber" = $1
+            `;
             param = studentNumber;
         } else if (email) {
-            query = 'SELECT * FROM "User" WHERE "email" = $1';
+            query = `
+                SELECT u.*, d.name as "departmentName", d.code as "departmentCode"
+                FROM "User" u
+                LEFT JOIN "Department" d ON u."departmentId" = d.id
+                WHERE u."email" = $1
+            `;
             param = email;
         } else {
             console.log('Missing login identifier');
@@ -46,7 +57,6 @@ app.post('/api/login', async (req, res) => {
 
         console.log(`Querying DB for: ${param}`); // LOG PARAM
 
-        // In a real app, use hashing (bcrypt)!
         const result = await client.query(query, [param]);
 
         if (result.rows.length === 0) {
@@ -65,7 +75,16 @@ app.post('/api/login', async (req, res) => {
         // Don't send password back
         const { password: _, ...userWithoutPassword } = user;
 
-        res.json(userWithoutPassword);
+        // Construct response with department object
+        const responseData = {
+            ...userWithoutPassword,
+            department: user.departmentName ? {
+                name: user.departmentName,
+                code: user.departmentCode
+            } : null
+        };
+
+        res.json(responseData);
     } catch (error) {
         console.error('Login error details:', {
             message: error.message,

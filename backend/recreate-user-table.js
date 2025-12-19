@@ -10,25 +10,29 @@ async function recreateUserTable() {
         await client.connect();
         console.log('Connected to DB');
 
-        // Drop existing table
-        await client.query('DROP TABLE IF EXISTS "User"');
-        console.log('Dropped existing "User" table.');
+        // Drop existing table to ensure clean schema change
+        await client.query('DROP TABLE IF EXISTS "User" CASCADE');
+        console.log('Dropped old "User" table');
 
         const query = `
-      CREATE TABLE "User" (
+      CREATE TABLE IF NOT EXISTS "User" (
         "id" TEXT PRIMARY KEY,
-        "email" TEXT, 
-        "studentNumber" TEXT UNIQUE, -- New field for students
+        "email" TEXT UNIQUE,
+        "studentNumber" TEXT UNIQUE,
         "password" TEXT NOT NULL,
         "name" TEXT NOT NULL,
-        "role" TEXT NOT NULL,
-        "department" TEXT,
-        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        "role" TEXT NOT NULL, 
+        "departmentId" TEXT, 
+        "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        CONSTRAINT fk_department
+          FOREIGN KEY("departmentId") 
+          REFERENCES "Department"("id")
+          ON DELETE SET NULL
       );
     `;
 
         await client.query(query);
-        console.log('Table "User" recreated with studentNumber column!');
+        console.log('Table "User" recreated successfully with Foreign Key!');
     } catch (err) {
         console.error('Error recreating table:', err);
     } finally {

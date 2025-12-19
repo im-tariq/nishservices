@@ -12,7 +12,7 @@ const users = [
         password: 'password123',
         name: 'TARIQ',
         role: 'student',
-        department: null
+        departmentId: null
     },
     {
         id: '2',
@@ -21,16 +21,34 @@ const users = [
         password: 'password123',
         name: 'Dr. Smith',
         role: 'professor',
-        department: 'Computer Engineering'
+        departmentId: 'dept_eng' // Faculty of Engineering
     },
     {
         id: '3',
-        email: 'employee@test.com',
+        email: 'employee@test.com', // International Office Employee
         studentNumber: null,
         password: 'password123',
-        name: 'Admin Staff',
+        name: 'IO Staff',
         role: 'employee',
-        department: 'International Office'
+        departmentId: 'dept_io'
+    },
+    {
+        id: '4',
+        email: 'finance@test.com', // Finance Employee
+        studentNumber: null,
+        password: 'password123',
+        name: 'Finance Staff',
+        role: 'employee',
+        departmentId: 'dept_fo'
+    },
+    {
+        id: '5',
+        email: 'student.affairs@test.com',
+        studentNumber: null,
+        password: 'password123',
+        name: 'SA Staff',
+        role: 'employee',
+        departmentId: 'dept_sa'
     }
 ];
 
@@ -39,11 +57,10 @@ async function seedUsers() {
         await client.connect();
         console.log('Connected to DB');
 
-        // Clear existing users
         await client.query('DELETE FROM "User"');
 
         const query = `
-      INSERT INTO "User" ("id", "email", "studentNumber", "password", "name", "role", "department")
+      INSERT INTO "User" ("id", "email", "studentNumber", "password", "name", "role", "departmentId")
       VALUES ($1, $2, $3, $4, $5, $6, $7)
     `;
 
@@ -55,12 +72,12 @@ async function seedUsers() {
                 user.password,
                 user.name,
                 user.role,
-                user.department
+                user.departmentId
             ]);
-            console.log(`Inserted ${user.role}: ${user.email || user.studentNumber}`);
+            console.log(`Inserted ${user.role}: ${user.email || user.studentNumber} -> Dept: ${user.departmentId}`);
         }
 
-        console.log('Seeding complete!');
+        console.log('Users seeded!');
     } catch (err) {
         console.error('Error seeding users:', err);
     } finally {
